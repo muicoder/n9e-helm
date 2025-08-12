@@ -1,0 +1,22 @@
+#!/bin/sh
+set -e
+cd "$(dirname "$0")" >/dev/null || exit
+
+VER=$(grep /nightingale: values.yaml | awk -F: '{print $NF}')
+
+readonly root=root.2020
+if [ $# -ne 0 ]; then
+  wget -qO- "https://github.com/ccfos/nightingale/raw/v$VER/docker/initsql/a-n9e.sql" | sed "s~root.2020~$root~" >../scripts/a-n9e.sql
+  wget -qO ../metrics/metrics.yaml "https://github.com/ccfos/nightingale/raw/v$VER/etc/metrics.yaml"
+  wget -qO ../scripts/config.toml "https://github.com/ccfos/nightingale/raw/v$VER/etc/config.toml"
+fi
+
+cp -a ../Chart.yaml \
+  ../metrics ../scripts .
+mkdir -p categraf && find ../categraf/conf -type f -exec cp {} categraf \;
+if ! awk -F: '/docker_socket/{print $NF}' values.yaml | grep .sock >/dev/null 2>&1; then
+  rm -f categraf/docker.toml
+fi
+
+helm template n9e . >../aio.yaml
+rm -rf metrics scripts tpl Chart.yaml categraf

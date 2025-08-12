@@ -15,6 +15,7 @@ CREATE TABLE `users` (
     `roles` varchar(255) not null comment 'Admin | Standard | Guest, split by space',
     `contacts` varchar(1024) comment 'json e.g. {wecom:xx, dingtalk_robot_token:yy}',
     `maintainer` tinyint(1) not null default 0,
+    `disabled` int not null default 0 comment '0:enabled 1:disabled',
     `belong` varchar(191) DEFAULT '' COMMENT 'belong',
     `last_active_time` bigint DEFAULT 0 COMMENT 'last_active_time',
     `create_at` bigint not null default 0,
@@ -40,7 +41,8 @@ CREATE TABLE `user_group` (
     KEY (`update_at`)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
 
-insert into user_group(id, name, create_at, create_by, update_at, update_by) values(1, 'demo-root-group', unix_timestamp(now()), 'root', unix_timestamp(now()), 'root');
+insert into user_group(id, name, create_at, create_by, update_at, update_by) values(1, 'Admin', unix_timestamp(now()), 'root', unix_timestamp(now()), 'root');
+insert into user_group(id, name, create_at, create_by, update_at, update_by) values(2, 'Standard', unix_timestamp(now()), 'root', unix_timestamp(now()), 'root');
 
 CREATE TABLE `user_group_member` (
     `id` bigint unsigned not null auto_increment,
@@ -697,6 +699,7 @@ CREATE TABLE `sso_config` (
     PRIMARY KEY (`id`),
     UNIQUE KEY (`name`)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
+INSERT INTO `sso_config` (`id`, `name`, `content`, `update_at`) VALUES (1, 'LDAP', 'Enable = true\nHost = \'139.170.155.231\'\nPort = 33893\nBaseDn = \'dc=glauth,dc=com\'\nBindUser = \'cn=serviceuser,dc=glauth,dc=com\'\nBindPass = \'%%^&*UHGsdfjkas\'\nAuthFilter = \'(&(uid=%s))\'\nCoverAttributes = true\nTLS = false\nStartTLS = false\nDefaultRoles = [\'Standard\']\nDefaultTeams = [2]\n\n[Attributes]\nNickname = \'givenName\'\nPhone = \'mobile\'\nEmail = \'mail\'', 0);
 
 CREATE TABLE `es_index_pattern` (
     `id` bigint unsigned not null auto_increment,
@@ -2236,9 +2239,11 @@ CREATE TABLE `source_token` (
     `source_type` varchar(64) NOT NULL DEFAULT '' COMMENT 'source type',
     `source_id` varchar(255) NOT NULL DEFAULT '' COMMENT 'source identifier',
     `token` varchar(255) NOT NULL DEFAULT '' COMMENT 'access token',
+    `note` varchar(255) NOT NULL DEFAULT '' COMMENT 'note',
     `expire_at` bigint NOT NULL DEFAULT 0 COMMENT 'expire timestamp',
     `create_at` bigint NOT NULL DEFAULT 0 COMMENT 'create timestamp',
     `create_by` varchar(64) NOT NULL DEFAULT '' COMMENT 'creator',
     PRIMARY KEY (`id`),
-    KEY `idx_source_type_id_token` (`source_type`, `source_id`, `token`)
+    KEY `idx_source_type_id_token` (`source_type`, `source_id`, `token`),
+    KEY `idx_source_token_token` (`token`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

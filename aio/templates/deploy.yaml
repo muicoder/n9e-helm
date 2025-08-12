@@ -1,0 +1,69 @@
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: n9e-data
+  namespace: {{ .Release.Namespace }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+  storageClassName: ~
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    component: center
+  name: nightingale
+  namespace: {{ .Release.Namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      component: center
+  serviceName: nightingale-center
+  template:
+    metadata:
+      labels:
+        component: center
+    spec:
+      containers:
+        - command:
+            - sh
+            - -ce
+            - echo IyEvYmluL2Jhc2gKc2V0IC1lCnJlYWRvbmx5IEFQUD0vYXBwIE1OVD0vbjllCmZpbmQgIiRNTlQiIC10eXBlIGYgfCBhd2sgLUYvICd7cHJpbnQgJE5GfScgfCB3aGlsZSByZWFkIC1yIGY7IGRvCiAgY2FzZSAke2YjIyoufSBpbgogIHRvbWwpCiAgICB0YXJnZXQ9ZXRjCiAgICA7OwogIHRwbCkKICAgIHRhcmdldD10ZW1wbGF0ZQogICAgOzsKICBweSkKICAgIHRhcmdldD1zY3JpcHQKICAgIDs7CiAgKikKICAgIGVjaG8gInNraXAgJE1OVC8kZiIKICAgIGNvbnRpbnVlCiAgICA7OwogIGVzYWMKICBta2RpciAtcCAiJEFQUC8kdGFyZ2V0IgogIGNwIC1mdiAiJE1OVC8kdGFyZ2V0LyRmIiAiJEFQUC8kdGFyZ2V0Igpkb25lCmdyZXAgLUUgJyhsb2NhbGhvc3Q6WzAtOV0rKScgIiRBUFAvZXRjL2NvbmZpZy50b21sIiB8IGdyZXAgLXYgXiMgfCBzZWQgJ3N+In5cbn5nO3N+KH5cbn5nO3N+KX5cbn5nO3N+L35cbn5nJyB8IGdyZXAgLUUgJzpbMC05XSsnIHwgd2hpbGUgcmVhZCAtciBlcDsgZG8KICBjYXQgPDxFT0YgPiJjaGVjay4kZXAucHkiCmltcG9ydCBzb2NrZXQsc3lzCnM9c29ja2V0LnNvY2tldCgpCnMuY29ubmVjdCgoIiR7ZXAlOip9IiwgJHtlcCMqOn0pKQpFT0YKICB1bnRpbCBweXRob24zICJjaGVjay4kZXAucHkiOyBkbyBzbGVlcCAkKCgyKipudW0rKykpOyBkb25lCmRvbmUgJiYgZXhlYyAiJEFQUC9uOWUiIC1jb25maWdzPSIkQVBQL2V0YyIK|base64 -d|sh
+          env:
+            - name: GIN_MODE
+              value: release
+            - name: TZ
+              value: Asia/Shanghai
+          image: {{ .Values.image }}
+          name: nightingale
+          ports:
+            - containerPort: 17000
+          readinessProbe:
+            httpGet:
+              port: 17000
+              path: /v1/n9e/heartbeat
+          volumeMounts:
+            - mountPath: /n9e/etc/config.toml
+              name: config
+              subPath: toml
+            - mountPath: /app/data
+              name: data
+          workingDir: /app
+      enableServiceLinks: false
+      shareProcessNamespace: true
+      volumes:
+        - persistentVolumeClaim:
+            claimName: n9e-data
+          name: data
+        - configMap:
+            name: n9e-config
+            items:
+              - key: config.toml
+                path: toml
+          name: config

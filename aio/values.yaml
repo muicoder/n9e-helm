@@ -1,0 +1,5 @@
+categraf:
+  docker_socket: ""
+  enabled: false
+  image: flashcatcloud/categraf:latest
+image: flashcatcloud/nightingale:9.2.0

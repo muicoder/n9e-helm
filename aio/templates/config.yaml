@@ -1,0 +1,8 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: n9e-config
+  namespace: {{ .Release.Namespace }}
+binaryData:
+{{ (.Files.Glob "scripts/*.toml").AsSecrets | indent 2 }}

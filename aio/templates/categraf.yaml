@@ -1,0 +1,114 @@
+{{- if .Values.categraf.enabled }}
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: categraf
+  namespace: {{ .Release.Namespace }}
+  labels:
+    component: categraf
+spec:
+  selector:
+    matchLabels:
+      component: categraf
+  template:
+    metadata:
+      labels:
+        component: categraf
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/os
+                operator: In
+                values:
+                - linux
+      enableServiceLinks: false
+      dnsPolicy: ClusterFirstWithHostNet
+      hostNetwork: true
+      restartPolicy: Always
+      tolerations:
+      - effect: NoSchedule
+        operator: Exists
+      serviceAccountName: categraf
+      containers:
+        - command:
+            - sh
+            - -ce
+            - echo IyEvYmluL3NoCnNldCAtZQoKIyBBbGxvdyBjYWVncmFmIHRvIHNlbmQgSUNNUCBwYWNrZXRzIGFuZCBiaW5kIHRvIHByaXZsaWdlZCBwb3J0cwppZiAhIHNldGNhcCBjYXBfbmV0X3JhdyxjYXBfbmV0X2JpbmRfc2VydmljZStlcCAvdXNyL2Jpbi9jYXRlZ3JhZjsgdGhlbgogIGVjaG8gIkZhaWxlZCB0byBzZXQgYWRkaXRpb25hbCBjYXBhYmlsaXRpZXMgb24gL3Vzci9iaW4vY2F0ZWdyYWYiCmZpCgpyZWFkb25seSBUT01MPSIke1RPTUw6LS90b21sfSIKcmVhZG9ubHkgQ09ORj0iJHtDT05GOi0vZXRjL2NhdGVncmFmL2NvbmZ9IgoKZmluZCAiJFRPTUwiIC10eXBlIGYgfCBhd2sgLUYvICd7cHJpbnQgJE5GfScgfCB3aGlsZSByZWFkIC1yIHRvbWw7IGRvCiAgY2FzZSAke3RvbWwlLip9IGluCiAgbG9ncyB8IGNvbmZpZykKICAgIHRhcmdldD0iJENPTkYiCiAgICA7OwogICopCiAgICB0YXJnZXQ9IiRDT05GL2lucHV0LiR7dG9tbCUuKn0iCiAgICA7OwogIGVzYWMKICBta2RpciAtcCAiJHRhcmdldCIKICBjcCAtZiAiJFRPTUwvJHRvbWwiICIkdGFyZ2V0Igpkb25lCgpmaW5kICIkQ09ORiIgLXR5cGUgZgpleGVjICQod2hpY2ggY2F0ZWdyYWYpIC1jb25maWdzPSIkQ09ORiIK|base64 -d|sh
+          env:
+            - name: TZ
+              value: Asia/Shanghai
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: HOSTIP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: "HOST_PROC"
+              value: "/hostfs/proc"
+            - name: "HOST_SYS"
+              value: "/hostfs/sys"
+            - name: "HOST_MOUNT_PREFIX"
+              value: "/hostfs"
+          image: {{ .Values.categraf.image }}
+          name: categraf
+          volumeMounts:
+            - mountPath: /toml
+              name: categraf
+            {{- if .Values.categraf.docker_socket }}
+            - name: docker-socket
+              mountPath: /var/run/docker.sock
+            {{- end }}
+            - mountPath: /var/run/utmp
+              name: hostroutmp 
+              readOnly: true
+            - mountPath: /hostfs
+              name: hostrofs
+              readOnly: true
+      volumes:
+        - name: categraf
+          configMap:
+            name: categraf
+        {{- if .Values.categraf.docker_socket }}
+        - name: docker-socket
+          hostPath:
+            path: {{ trimPrefix "unix://" .Values.categraf.docker_socket }}
+            type: Socket
+        {{- end }}
+        - name: hostrofs
+          hostPath:
+            path: /
+        - name: hostroutmp
+          hostPath:
+            path: /var/run/utmp
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: categraf
+  namespace: {{ .Release.Namespace }}
+binaryData:
+{{ (.Files.Glob "categraf/*.toml").AsSecrets | indent 2 }}
+{{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nightingale-center
+  namespace: {{ .Release.Namespace }}
+  labels:
+    component: center
+spec:
+  ports:
+    - port: 80
+      targetPort: 17000
+{{- if .Values.categraf.enabled }}
+    - port: 20090
+      targetPort: 20090
+{{- end }}
+  selector:
+    component: center
